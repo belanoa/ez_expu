@@ -1,9 +1,13 @@
 module expu_correction #(
-    parameter int unsigned  INPUT_FRACTION          = 7 ,
-    parameter int unsigned  COEFFICIENT_FRACTION    = 7 ,
-    parameter int unsigned  CONSTANT_FRACTION       = 7 ,
-    parameter int unsigned  MUL_SURPLUS_BITS        = 1 ,
-    parameter int unsigned  NOT_SURPLUS_BITS        = 0
+    parameter int unsigned  INPUT_FRACTION          = 7             ,
+    parameter int unsigned  COEFFICIENT_FRACTION    = 4             ,
+    parameter int unsigned  CONSTANT_FRACTION       = 7             ,
+    parameter int unsigned  MUL_SURPLUS_BITS        = 1             ,
+    parameter int unsigned  NOT_SURPLUS_BITS        = 0             ,
+    parameter real          ALPHA_REAL              = 0.24609375    ,
+    parameter real          BETA_REAL               = 0.41015625    ,
+    parameter real          GAMMA_1_REAL            = 2.8359375     ,
+    parameter real          GAMMA_2_REAL            = 2.16796875    
 ) (
     input   logic                           clk_i                   ,
     input   logic                           enable_i                ,
@@ -15,16 +19,13 @@ module expu_correction #(
     
     localparam  int unsigned    SUM_FRACTION    = INPUT_FRACTION > CONSTANT_FRACTION ? INPUT_FRACTION : CONSTANT_FRACTION;
 
-    localparam  real    ALPHA_REAL  = 0.27055988837249;
-    localparam  real    BETA_REAL   = 0.4294429717321613;   
-
     //Q<-1.CONSTANT_FRACTION>
     localparam int unsigned ALPHA   = int'(ALPHA_REAL * 2 ** COEFFICIENT_FRACTION);
     localparam int unsigned BETA    = int'(BETA_REAL * 2 ** COEFFICIENT_FRACTION);
 
     //Q<2.COEFFICIENT_FRACTION>
-    localparam int unsigned GAMMA_1 = int'($ln(2.0) / ALPHA_REAL * 2 ** CONSTANT_FRACTION);
-    localparam int unsigned GAMMA_2 = int'((2.0 * $ln(2.0) / BETA_REAL - 1.0) * 2 ** CONSTANT_FRACTION);
+    localparam int unsigned GAMMA_1 = int'(GAMMA_1_REAL * 2 ** CONSTANT_FRACTION);
+    localparam int unsigned GAMMA_2 = int'(GAMMA_2_REAL * 2 ** CONSTANT_FRACTION);
 
 
     //Q<-1.INPUT_FRACTION + MUL_SURPLUS_BITS>

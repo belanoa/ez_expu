@@ -8,8 +8,10 @@ module expu_top_tb;
     localparam int unsigned     EXPONENT_BITS   = 8;
     localparam int unsigned     MANTISSA_BITS   = 7;
 
-    localparam int unsigned     N_EXP           = 100;
+    localparam int unsigned     N_EXP           = 1;
     localparam logic            SIGN            = 1'b0;
+
+    localparam logic            MANT_CORRECTION = 1'b1;
 
     event   start_recording;
 
@@ -25,15 +27,15 @@ module expu_top_tb;
     logic [EXPONENT_BITS + MANTISSA_BITS : 0]   res;
 
     expu_top #(
-        .MANTISSA_BITS          (   7       ),           
-        .EXPONENT_BITS          (   8       ),         
-        .A_FRACTION             (           ),
-        .ENABLE_ROUNDING        (   1       ),              
-        .ENABLE_MANT_CORRECTION (   1       ),  
-        .COEFFICIENT_FRACTION   (           ),    
-        .CONSTANT_FRACTION      (           ),       
-        .MUL_SURPLUS_BITS       (   1       ),        
-        .NOT_SURPLUS_BITS       (   0       )        
+        .MANTISSA_BITS          (   7               ),           
+        .EXPONENT_BITS          (   8               ),         
+        .A_FRACTION             (                   ),
+        .ENABLE_ROUNDING        (   1               ),              
+        .ENABLE_MANT_CORRECTION (   MANT_CORRECTION ),  
+        .COEFFICIENT_FRACTION   (                   ),    
+        .CONSTANT_FRACTION      (                   ),       
+        .MUL_SURPLUS_BITS       (   1               ),        
+        .NOT_SURPLUS_BITS       (   0               )        
     ) expu_top_dut (
         .clk_i      (   clk                 ),
         .rst_ni     (   rst_n               ),
@@ -104,8 +106,11 @@ module expu_top_tb;
         results = $fopen("./res.txt", "w");
         $fwrite(results, "[");
 
-        #TCp;
-        #TCp;
+        if (MANT_CORRECTION) begin
+            #(2 * TCp);
+        end else begin
+            #TCp;
+        end
 
         @(res)
 

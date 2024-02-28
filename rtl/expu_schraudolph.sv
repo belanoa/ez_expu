@@ -57,13 +57,14 @@ module expu_schraudolph #(
         end
     end
 
+
     assign sign     =   float_q   [MANTISSA_BITS + EXPONENT_BITS];
     assign exponent =   float_q   [MANTISSA_BITS + EXPONENT_BITS - 1 : MANTISSA_BITS];
     assign mantissa =   {1'b1, float_q [MANTISSA_BITS - 1 : 0]};
 
     assign scaled_mantissa  =   (mantissa * A);
     assign shifted_mantissa =   (scaled_mantissa [MANTISSA_BITS + A_FRACTION + A_INT_BITS : A_FRACTION - MANTISSA_BITS] >> (MAX_EXP - exponent));
-    assign rounded_mantissa =   shifted_mantissa [EXPONENT_BITS + MANTISSA_BITS : 1] + ENABLE_ROUNDING ? shifted_mantissa [0] : '0;
+    assign rounded_mantissa =   shifted_mantissa [EXPONENT_BITS + MANTISSA_BITS : 1] + (ENABLE_ROUNDING ? shifted_mantissa [0] : '0);
     assign signed_mantissa  =   sign == 1'b0 ? rounded_mantissa : -rounded_mantissa;
 
     assign ovfr =   (exponent > MAX_EXP) || (
