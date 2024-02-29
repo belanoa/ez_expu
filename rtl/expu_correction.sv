@@ -1,13 +1,19 @@
+import fpnew_pkg::*;
+import expu_pkg::*;
+
 module expu_correction #(
-    parameter int unsigned  INPUT_FRACTION          = 7             ,
-    parameter int unsigned  COEFFICIENT_FRACTION    = 4             ,
-    parameter int unsigned  CONSTANT_FRACTION       = 7             ,
-    parameter int unsigned  MUL_SURPLUS_BITS        = 1             ,
-    parameter int unsigned  NOT_SURPLUS_BITS        = 0             ,
-    parameter real          ALPHA_REAL              = 0.24609375    ,
-    parameter real          BETA_REAL               = 0.41015625    ,
-    parameter real          GAMMA_1_REAL            = 2.8359375     ,
-    parameter real          GAMMA_2_REAL            = 2.16796875    
+    parameter fpnew_pkg::fp_format_e    FPFORMAT                = FP16ALT       ,
+    parameter int unsigned              COEFFICIENT_FRACTION    = 4             ,
+    parameter int unsigned              CONSTANT_FRACTION       = 7             ,
+    parameter int unsigned              MUL_SURPLUS_BITS        = 1             ,
+    parameter int unsigned              NOT_SURPLUS_BITS        = 0             ,
+    parameter real                      ALPHA_REAL              = 0.24609375    ,
+    parameter real                      BETA_REAL               = 0.41015625    ,
+    parameter real                      GAMMA_1_REAL            = 2.8359375     ,
+    parameter real                      GAMMA_2_REAL            = 2.16796875    ,
+
+    localparam int unsigned INPUT_FRACTION  = fpnew_pkg::man_bits(FPFORMAT)                                             ,
+    localparam int unsigned SUM_FRACTION    = INPUT_FRACTION > CONSTANT_FRACTION ? INPUT_FRACTION : CONSTANT_FRACTION
 ) (
     input   logic                           clk_i                   ,
     input   logic                           enable_i                ,
@@ -16,8 +22,6 @@ module expu_correction #(
     input   logic [INPUT_FRACTION - 1 : 0]  mantissa_i              ,
     output  logic [INPUT_FRACTION - 1 : 0]  corrected_mantissa_o    
 );
-    
-    localparam  int unsigned    SUM_FRACTION    = INPUT_FRACTION > CONSTANT_FRACTION ? INPUT_FRACTION : CONSTANT_FRACTION;
 
     //Q<-1.CONSTANT_FRACTION>
     localparam int unsigned ALPHA   = int'(ALPHA_REAL * 2 ** COEFFICIENT_FRACTION);
@@ -26,7 +30,6 @@ module expu_correction #(
     //Q<2.COEFFICIENT_FRACTION>
     localparam int unsigned GAMMA_1 = int'(GAMMA_1_REAL * 2 ** CONSTANT_FRACTION);
     localparam int unsigned GAMMA_2 = int'(GAMMA_2_REAL * 2 ** CONSTANT_FRACTION);
-
 
     //Q<-1.INPUT_FRACTION + MUL_SURPLUS_BITS>
     logic [INPUT_FRACTION - 2 + MUL_SURPLUS_BITS : 0]   mant_mul_1;

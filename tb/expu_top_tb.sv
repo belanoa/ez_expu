@@ -8,7 +8,7 @@ module expu_top_tb;
     localparam int unsigned     EXPONENT_BITS   = 8;
     localparam int unsigned     MANTISSA_BITS   = 7;
 
-    localparam int unsigned     N_EXP           = 1;
+    localparam int unsigned     N_EXP           = 6;
     localparam logic            SIGN            = 1'b0;
 
     localparam logic            MANT_CORRECTION = 1'b1;
@@ -26,9 +26,7 @@ module expu_top_tb;
     logic [MANTISSA_BITS - 1 : 0]               mant;
     logic [EXPONENT_BITS + MANTISSA_BITS : 0]   res;
 
-    expu_top #(
-        .MANTISSA_BITS          (   7               ),           
-        .EXPONENT_BITS          (   8               ),         
+    expu_top #(      
         .A_FRACTION             (                   ),
         .ENABLE_ROUNDING        (   1               ),              
         .ENABLE_MANT_CORRECTION (   MANT_CORRECTION ),  
@@ -41,8 +39,8 @@ module expu_top_tb;
         .rst_ni     (   rst_n               ),
         .clear_i    (   clear               ),
         .enable_i   (   enable              ),
-        .float_i    (   {SIGN, exp, mant}   ),
-        .float_o    (   res                 )            
+        .op_i       (   {SIGN, exp, mant}   ),
+        .res_o      (   res                 )            
     );
 
     task clk_cycle;
