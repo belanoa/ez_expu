@@ -55,7 +55,7 @@ module expu_row #(
 
     generate
         for (genvar i = 0; i < NUM_REGS; i ++) begin : gen_regs
-            `FFLARNC(reg_data [i + 1],  reg_data [i],   enable_i,   clear_i,    '0)
+            `FFLARNC(reg_data [i + 1],  reg_data [i],   enable_i,   clear_i,    '0, clk_i,  rst_ni)
         end
     endgenerate
 

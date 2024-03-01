@@ -72,7 +72,7 @@ module expu_top #(
 
     generate
         for (genvar i = 0; i < NUM_REGS; i++) begin : control_signals_registers
-            `FFLARNC(valid_reg [i + 1], valid_reg [i],  reg_en, clear_i,    '0)
+            `FFLARNC(valid_reg [i + 1], valid_reg [i],  reg_en, clear_i,    '0, clk_i,  rst_ni)
         end
     endgenerate
 
