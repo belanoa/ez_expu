@@ -84,8 +84,6 @@ module expu_row #(
                 .res_o  (   res_cor )   
             );
 
-            `FFLARNC()
-
             assign result   = res_cor;
         end else begin
             assign result   = res_sch;
