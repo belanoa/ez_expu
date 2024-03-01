@@ -2,7 +2,11 @@ package:
   name: ez_expu   #Provisional name
 
 dependencies:
-  fpnew             : { git: "https://github.com/pulp-platform/cvfpu.git" , rev: "pulp-v0.1.3"  }
+  fpnew         : { git: "https://github.com/pulp-platform/cvfpu.git"       , rev: "pulp-v0.1.3"  }
+  common_cells  : { git: "git@github.com:pulp-platform/common_cells.git"    , rev: "v1.32.0"      }
+  hwpe-stream   : { git: "https://github.com/pulp-platform/hwpe-stream.git" , rev: "v1.7.0"       }
+  hwpe-ctrl     : { git: "https://github.com/pulp-platform/hwpe-ctrl.git"   , rev: "v1.7.3"       }
+  hci           : { git: "https://github.com/pulp-platform/hci.git"         , rev: "v1.1"         } 
 
 sources:
   files:
@@ -10,6 +14,7 @@ sources:
     - rtl/expu_top.sv
     - rtl/expu_schraudolph.sv
     - rtl/expu_correction.sv
+    - rtl/expu_row.sv
 
     - target: expu_sim
       files:

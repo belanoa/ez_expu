@@ -11,13 +11,8 @@ module expu_schraudolph #(
     localparam int unsigned EXPONENT_BITS   = fpnew_pkg::exp_bits(FPFORMAT) ,
     localparam int unsigned BIAS            = fpnew_pkg::bias(FPFORMAT)     
 ) (
-    input   logic                           clk_i       ,
-    input   logic                           enable_i    ,
-    input   logic                           clear_i     ,
-    input   logic                           rst_ni      ,
-    input   logic [WIDTH - 1 : 0]           op_i        ,
-    output  logic [MANTISSA_BITS - 1 : 0]   mantissa_o  ,
-    output  logic [EXPONENT_BITS - 1 : 0]   exponent_o  
+    input   logic [WIDTH - 1 : 0]   op_i    ,
+    output  logic [WIDTH - 1 : 0]   res_o                
 );
 
     localparam real         A_REAL              = 1 / $ln(2);
@@ -28,8 +23,6 @@ module expu_schraudolph #(
 
     //Q<A_INT_BITS.A_FRACTION>
     localparam logic [A_INT_BITS + A_FRACTION - 1 : 0]  A   = int'(A_REAL * 2 ** A_FRACTION);
-
-    logic [MANTISSA_BITS + EXPONENT_BITS : 0]   op_q;
 
     logic                                       sign;
     logic [EXPONENT_BITS - 1 : 0]               exponent;
@@ -46,26 +39,11 @@ module expu_schraudolph #(
     logic [EXPONENT_BITS - 1 : 0]   new_exponent;
     logic [MANTISSA_BITS - 1 : 0]   new_mantissa;
 
-    logic   ovfr    ;
+    logic   ovfr;
 
-    always_ff @(posedge clk_i or negedge rst_ni) begin
-        if (~rst_ni) begin
-            op_q <= '0;
-        end else begin
-            if (clear_i) begin
-                op_q <= '0;
-            end else if (enable_i) begin
-                op_q <= op_i;
-            end else begin
-                op_q <= op_q;
-            end
-        end
-    end
-
-
-    assign sign     =   op_q   [MANTISSA_BITS + EXPONENT_BITS];
-    assign exponent =   op_q   [MANTISSA_BITS + EXPONENT_BITS - 1 : MANTISSA_BITS];
-    assign mantissa =   {1'b1, op_q [MANTISSA_BITS - 1 : 0]};
+    assign sign     =   op_i   [MANTISSA_BITS + EXPONENT_BITS];
+    assign exponent =   op_i   [MANTISSA_BITS + EXPONENT_BITS - 1 : MANTISSA_BITS];
+    assign mantissa =   {1'b1, op_i [MANTISSA_BITS - 1 : 0]};
 
     assign scaled_mantissa  =   (mantissa * A);
     assign shifted_mantissa =   (scaled_mantissa [MANTISSA_BITS + A_FRACTION + A_INT_BITS : A_FRACTION - MANTISSA_BITS] >> (MAX_EXP - exponent));
@@ -91,7 +69,6 @@ module expu_schraudolph #(
         end
     end
 
-    assign mantissa_o   =   new_mantissa;
-    assign exponent_o   =   new_exponent;
+    assign  res_o   = {1'b0, new_exponent, new_mantissa};
 
 endmodule

@@ -1,19 +1,23 @@
+`include "common_cells/registers.svh"
+
 import fpnew_pkg::*;
 import expu_pkg::*;
 
 module expu_row #(
-    parameter fpnew_pkg::fp_format_e    FPFORMAT                = FP16ALT       ,
-    parameter int unsigned              A_FRACTION              = 14            ,
-    parameter int unsigned              ENABLE_ROUNDING         = 1             ,
-    parameter logic                     ENABLE_MANT_CORRECTION  = 1             ,
-    parameter int unsigned              COEFFICIENT_FRACTION    = 4             ,
-    parameter int unsigned              CONSTANT_FRACTION       = 7             ,
-    parameter int unsigned              MUL_SURPLUS_BITS        = 1             ,
-    parameter int unsigned              NOT_SURPLUS_BITS        = 0             ,
-    parameter real                      ALPHA_REAL              = 0.24609375    ,
-    parameter real                      BETA_REAL               = 0.41015625    ,
-    parameter real                      GAMMA_1_REAL            = 2.8359375     ,
-    parameter real                      GAMMA_2_REAL            = 2.16796875    ,
+    parameter fpnew_pkg::fp_format_e    FPFORMAT                = fpnew_pkg::FP16ALT    ,
+    parameter expu_pkg::regs_config_t   REG_POS                 = expu_pkg::BEFORE      ,
+    parameter int unsigned              NUM_REGS                = 0                     ,
+    parameter int unsigned              A_FRACTION              = 14                    ,
+    parameter int unsigned              ENABLE_ROUNDING         = 1                     ,
+    parameter logic                     ENABLE_MANT_CORRECTION  = 1                     ,
+    parameter int unsigned              COEFFICIENT_FRACTION    = 4                     ,
+    parameter int unsigned              CONSTANT_FRACTION       = 7                     ,
+    parameter int unsigned              MUL_SURPLUS_BITS        = 1                     ,
+    parameter int unsigned              NOT_SURPLUS_BITS        = 0                     ,
+    parameter real                      ALPHA_REAL              = 0.24609375            ,
+    parameter real                      BETA_REAL               = 0.41015625            ,
+    parameter real                      GAMMA_1_REAL            = 2.8359375             ,
+    parameter real                      GAMMA_2_REAL            = 2.16796875            ,
 
     localparam int unsigned WIDTH           = fpnew_pkg::fp_width(FPFORMAT) ,
     localparam int unsigned MANTISSA_BITS   = fpnew_pkg::man_bits(FPFORMAT) ,
@@ -27,25 +31,41 @@ module expu_row #(
     output  logic [WIDTH - 1 : 0]   res_o            
 );
 
-    logic [MANTISSA_BITS - 1 : 0]   mant_sch,
-                                    mant_cor;
-    logic [EXPONENT_BITS -1 : 0]    exp_sch;
+    logic [WIDTH - 1 : 0]           res_sch,
+                                    res_cor;
+
     logic [WIDTH - 1 : 0]           result;
 
-    logic [EXPONENT_BITS - 1 : 0]   exponent_q;
+    logic [NUM_REGS : 0] [WIDTH - 1 : 0] reg_data;
+
+    logic [WIDTH - 1 : 0]   op_before,
+                            op_after;
+
+    generate
+        if (REG_POS == fpnew_pkg::BEFORE) begin
+            assign reg_data [0] = op_i;
+            assign op_before    = reg_data [NUM_REGS];
+            assign res_o        = result;
+        end else if (REG_POS == fpnew_pkg::AFTER) begin
+            assign reg_data [0] = result;
+            assign res_o        = reg_data [NUM_REGS];
+            assign op_before    = op_i;
+        end
+    endgenerate
+
+    generate
+        for (genvar i = 0; i < NUM_REGS; i ++) begin : gen_regs
+            `FFLARNC(reg_data [i + 1],  reg_data [i],   enable_i,   clear_i,    '0)
+        end
+    endgenerate
 
     expu_schraudolph #(
         .FPFORMAT       (   FPFORMAT        ),
         .A_FRACTION     (   A_FRACTION      ),
         .ENABLE_ROUNDING(   ENABLE_ROUNDING )
     ) expu_schraudolph (
-        .clk_i          (   clk_i           ),
-        .enable_i       (   enable_i        ), 
-        .clear_i        (   clear_i         ), 
-        .rst_ni         (   rst_ni          ), 
-        .op_i           (   op_i            ),
-        .mantissa_o     (   mant_sch        ), 
-        .exponent_o     (   exp_sch         )   
+        .op_i   (   op_i    ),
+        .res_o  (   res_sch )  
     );
 
     generate
@@ -59,35 +79,17 @@ module expu_row #(
                 .BETA_REAL              (   BETA_REAL               ),
                 .GAMMA_1_REAL           (   GAMMA_1_REAL            ),
                 .GAMMA_2_REAL           (   GAMMA_2_REAL            ) 
-            ) expu_correction (
-                .clk_i                  (   clk_i                   ),
-                .enable_i               (   enable_i                ),
-                .clear_i                (   clear_i                 ), 
-                .rst_ni                 (   rst_ni                  ), 
-                .mantissa_i             (   mant_sch                ), 
-                .corrected_mantissa_o   (   mant_cor                )   
+            ) expu_correction ( 
+                .op_i   (   res_sch ), 
+                .res_o  (   res_cor )   
             );
 
-            always_ff @(posedge clk_i or negedge rst_ni) begin
-                if (~rst_ni) begin
-                    exponent_q <= '0;
-                end else begin
-                    if (clear_i) begin
-                        exponent_q <= '0;
-                    end else if (enable_i) begin
-                        exponent_q <= exp_sch;
-                    end else begin
-                        exponent_q <= exponent_q;
-                    end
-                end
-            end
+            `FFLARNC()
 
-            assign result   = {1'b0, exponent_q, mant_cor};
+            assign result   = res_cor;
         end else begin
-            assign result   = {1'b0, exp_sch, mant_sch};
+            assign result   = res_sch;
         end
     endgenerate
-
-    assign res_o  = result;
 
 endmodule
