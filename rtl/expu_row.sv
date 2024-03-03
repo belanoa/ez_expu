@@ -23,12 +23,12 @@ module expu_row #(
     localparam int unsigned MANTISSA_BITS   = fpnew_pkg::man_bits(FPFORMAT) ,
     localparam int unsigned EXPONENT_BITS   = fpnew_pkg::exp_bits(FPFORMAT)
 ) (
-    input   logic                   clk_i       ,
-    input   logic                   rst_ni      ,
-    input   logic                   clear_i     ,
-    input   logic                   enable_i    ,
-    input   logic [WIDTH - 1 : 0]   op_i        ,
-    output  logic [WIDTH - 1 : 0]   res_o            
+    input   logic                       clk_i       ,
+    input   logic                       rst_ni      ,
+    input   logic                       clear_i     ,
+    input   logic [NUM_REGS - 1 : 0]    enable_i    ,
+    input   logic [WIDTH - 1 : 0]       op_i        ,
+    output  logic [WIDTH - 1 : 0]       res_o            
 );
 
     logic [WIDTH - 1 : 0]           res_sch,
@@ -38,8 +38,7 @@ module expu_row #(
 
     logic [NUM_REGS : 0] [WIDTH - 1 : 0] reg_data;
 
-    logic [WIDTH - 1 : 0]   op_before,
-                            op_after;
+    logic [WIDTH - 1 : 0]   op_before;
 
     generate
         if (REG_POS == fpnew_pkg::BEFORE) begin
@@ -55,7 +54,7 @@ module expu_row #(
 
     generate
         for (genvar i = 0; i < NUM_REGS; i ++) begin : gen_regs
-            `FFLARNC(reg_data [i + 1],  reg_data [i],   enable_i,   clear_i,    '0, clk_i,  rst_ni)
+            `FFLARNC(reg_data [i + 1],  reg_data [i],   enable_i [i],   clear_i,    '0, clk_i,  rst_ni)
         end
     endgenerate
 
@@ -64,13 +63,14 @@ module expu_row #(
         .A_FRACTION     (   A_FRACTION      ),
         .ENABLE_ROUNDING(   ENABLE_ROUNDING )
     ) expu_schraudolph (
-        .op_i   (   op_i    ),
-        .res_o  (   res_sch )  
+        .op_i   (   op_before   ),
+        .res_o  (   res_sch     )  
     );
 
     generate
         if (ENABLE_MANT_CORRECTION) begin
             expu_correction #(
+                .FPFORMAT               (   FPFORMAT                ),
                 .COEFFICIENT_FRACTION   (   COEFFICIENT_FRACTION    ),
                 .CONSTANT_FRACTION      (   CONSTANT_FRACTION       ),
                 .MUL_SURPLUS_BITS       (   MUL_SURPLUS_BITS        ),

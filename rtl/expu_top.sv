@@ -38,9 +38,20 @@ module expu_top #(
     output  logic                                   strb_o
 );
 
-    logic   [N_ROWS : 0]    valid_reg;
-    
-    logic reg_en;
+    logic [NUM_REGS : 0]    valid_reg;
+    logic [NUM_REGS : 0]    reg_en_n;
+
+    logic [NUM_REGS : 0] [N_ROWS - 1 : 0] strb_reg;
+
+    logic [N_ROWS - 1 : 0] [NUM_REGS - 1 : 0]   row_enable;
+
+    always_comb begin
+        for (int i = 0; i < N_ROWS; i++) begin
+            for (int j = 0; j < NUM_REGS; j++) begin
+                row_enable [i][j]   = enable_i & ~reg_en_n [j] & strb_reg [j][i];
+            end
+        end
+    end
 
     generate
         for (genvar i = 0; i < N_ROWS; i++) begin : expu_row
@@ -60,23 +71,42 @@ module expu_top #(
                 .GAMMA_1_REAL           (   GAMMA_1_REAL            ),
                 .GAMMA_2_REAL           (   GAMMA_2_REAL            )
             ) i_expu_row (
-                .clk_i      (   clk_i                   ),
-                .rst_ni     (   rst_ni                  ),
-                .clear_i    (   clear_i                 ),
-                .enable_i   (   strb_i  [i] & reg_en    ),
-                .op_i       (   op_i    [i]             ),
-                .res_o      (   res_o   [i]             )
+                .clk_i      (   clk_i           ),
+                .rst_ni     (   rst_ni          ),
+                .clear_i    (   clear_i         ),
+                .enable_i   (   row_enable  [i] ),
+                .op_i       (   op_i        [i] ),
+                .res_o      (   res_o       [i] )
             );
         end
     endgenerate
 
+    assign reg_en_n [NUM_REGS] = ~ready_i;
+
     generate
-        for (genvar i = 0; i < NUM_REGS; i++) begin : control_signals_registers
-            `FFLARNC(valid_reg [i + 1], valid_reg [i],  reg_en, clear_i,    '0, clk_i,  rst_ni)
+        for (genvar i = 0; i < NUM_REGS; i++) begin : reg_enable_assignement
+            assign reg_en_n [i] = reg_en_n [i + 1] & valid_reg [i + 1];
         end
     endgenerate
 
-    assign ready_o = ready_i;
-    assign reg_en  = enable_i & valid_i & ready_o;
+    generate
+        for (genvar i = 0; i < NUM_REGS; i++) begin : valid_registers
+            `FFLARNC(valid_reg [i + 1], valid_reg [i],  enable_i,   clear_i,    '0, clk_i,  rst_ni)
+        end
+    endgenerate
+
+    generate
+        for (genvar i = 0; i < NUM_REGS; i++) begin : strobe_registers
+            `FFLARNC(strb_reg [i + 1],  strb_reg [i],   enable_i,   clear_i,    '0, clk_i,  rst_ni)
+        end
+    endgenerate
+
+
+    assign valid_reg [0]    = valid_i;
+    assign valid_o          = valid_reg [NUM_REGS];
+    assign strb_reg [0]     = strb_i;
+    assign strb_o           = strb_reg  [NUM_REGS];
+
+    assign ready_o = ~reg_en_n [0] & enable_i;
 
 endmodule

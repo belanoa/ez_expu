@@ -1,46 +1,81 @@
 timeunit 1ps;
 timeprecision 1ps;
 
+import expu_pkg::*;
+
 module expu_top_tb;
     localparam TCp  = 1.0ns;
     localparam TA   = 0.2ns;
 
-    localparam int unsigned     EXPONENT_BITS   = 8;
-    localparam int unsigned     MANTISSA_BITS   = 7;
+    localparam fpnew_pkg::fp_format_e   FPFORMAT        = fpnew_pkg::FP16ALT;
+    localparam logic                    MANT_CORRECTION = 1'b1;
+    localparam int unsigned             NUM_REGS        = 4;
+    localparam int unsigned             N_ROWS          = 8;    
 
-    localparam int unsigned     N_EXP           = 6;
-    localparam logic            SIGN            = 1'b0;
+    localparam int unsigned WIDTH           = fpnew_pkg::fp_width(FPFORMAT);
+    localparam int unsigned MANTISSA_BITS   = fpnew_pkg::man_bits(FPFORMAT);
+    localparam int unsigned EXPONENT_BITS   = fpnew_pkg::exp_bits(FPFORMAT); 
 
-    localparam logic            MANT_CORRECTION = 1'b1;
+    localparam int unsigned                     N_EXP   = 7;
+    localparam logic                            SIGN    = 1'b0;
+    localparam int unsigned                     N_MANT  = 2 ** MANTISSA_BITS;
+    localparam logic [EXPONENT_BITS - 1 : 0]    MIN_EXP = 127;
 
+    event   start_input_generation;
     event   start_recording;
 
     int unsigned    results;
 
+    int unsigned    n_gen;
+
     logic   clk,
             rst_n,
             enable,
-            clear;
+            clear,
+            valid,
+            ready;
 
-    logic [EXPONENT_BITS - 1 : 0]               exp;
-    logic [MANTISSA_BITS - 1 : 0]               mant;
-    logic [EXPONENT_BITS + MANTISSA_BITS : 0]   res;
+    logic   valid_o,
+            ready_o;
+    logic [N_ROWS - 1 : 0] strb_o;
+
+    logic [N_ROWS - 1 : 0] strb;
+
+    logic [N_ROWS - 1 : 0] [WIDTH - 1 : 0]  op,
+                                            res_o;
+
+    logic [EXPONENT_BITS - 1 : 0]   exp;
+    logic [MANTISSA_BITS - 1 : 0]   mant;
 
     expu_top #(      
-        .A_FRACTION             (                   ),
-        .ENABLE_ROUNDING        (   1               ),              
-        .ENABLE_MANT_CORRECTION (   MANT_CORRECTION ),  
-        .COEFFICIENT_FRACTION   (                   ),    
-        .CONSTANT_FRACTION      (                   ),       
-        .MUL_SURPLUS_BITS       (   1               ),        
-        .NOT_SURPLUS_BITS       (   0               )        
+        .FPFORMAT               (                       ),
+        .REG_POS                (   expu_pkg::BEFORE    ),
+        .NUM_REGS               (   NUM_REGS            ),
+        .N_ROWS                 (   N_ROWS              ),
+        .A_FRACTION             (                       ),
+        .ENABLE_ROUNDING        (                       ),
+        .ENABLE_MANT_CORRECTION (   MANT_CORRECTION     ),
+        .COEFFICIENT_FRACTION   (                       ),
+        .CONSTANT_FRACTION      (                       ),
+        .MUL_SURPLUS_BITS       (                       ),
+        .NOT_SURPLUS_BITS       (                       ),
+        .ALPHA_REAL             (                       ),
+        .BETA_REAL              (                       ),
+        .GAMMA_1_REAL           (                       ),
+        .GAMMA_2_REAL           (                       )
     ) expu_top_dut (
-        .clk_i      (   clk                 ),
-        .rst_ni     (   rst_n               ),
-        .clear_i    (   clear               ),
-        .enable_i   (   enable              ),
-        .op_i       (   {SIGN, exp, mant}   ),
-        .res_o      (   res                 )            
+        .clk_i      (   clk     ),
+        .rst_ni     (   rst_n   ),
+        .clear_i    (   clear   ),
+        .enable_i   (   enable  ),
+        .valid_i    (   valid   ),
+        .ready_i    (   ready   ),
+        .strb_i     (   strb    ),
+        .op_i       (   op      ),
+        .res_o      (   res_o   ),
+        .valid_o    (   valid_o ),
+        .ready_o    (   ready_o ),
+        .strb_o     (   strb_o  )
     );
 
     task clk_cycle;
@@ -74,12 +109,18 @@ module expu_top_tb;
     endtask
 
     initial begin
-        clk <= 1'b0;
-        rst_n <= 1'b1;
-        exp <= '0;
-        mant <= '0;
-        enable <= '0;
-        clear <= '0;
+        clk     <= '0;
+        rst_n   <= '1;
+        clear   <= '0;
+        enable  <= '0;
+        valid   <= '0;
+        ready   <= '0;
+        strb    <= '0;
+        op      <= '0;
+
+        exp <= MIN_EXP;
+        mant <= 0;
+        n_gen = 0;
 
         clk_cycle();
 
@@ -90,15 +131,48 @@ module expu_top_tb;
 
         rst_n <= #TA 1'b1;
         enable <= #TA 1'b1;
+        ready <= #TA 1'b1;
+        strb <= #TA '1;
 
-        clk_cycle();
-        gen_vars();
+        ->start_input_generation;
+        //->start_recording;
+
+        while (1)
+            clk_cycle();
+
+    end
+
+
+    initial begin : input_generation
+        @(start_input_generation.triggered)
+
+        valid <= #TA 1;
+
+        repeat(N_EXP) begin
+            repeat(N_MANT) begin
+                op [n_gen] <= #TA {SIGN, exp, mant};
+
+                mant <= #TA mant + 1;
+
+                n_gen = n_gen + 1;
+
+                if (n_gen == N_ROWS) begin
+                    n_gen = '0;
+                    #TCp;
+                end
+            end
+
+            exp <= #TA exp + 1;
+        end
+
+        repeat(10)
+            #TCp;
 
         $stop;
     end
 
 
-    initial begin : write_results
+    /*initial begin : write_results
         @(start_recording.triggered)
 
         results = $fopen("./res.txt", "w");
@@ -120,6 +194,6 @@ module expu_top_tb;
 
         $fwrite(results, "]");
         $fclose(results);
-    end
+    end*/
 
 endmodule

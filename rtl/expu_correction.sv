@@ -21,7 +21,6 @@ module expu_correction #(
     output  logic [WIDTH - 1 : 0]  res_o    
 );
 
-    logic                                       sign;
     logic [EXPONENT_BITS - 1 : 0]               exponent;
     //Q<1.MANTISSA_BITS>
     logic [MANTISSA_BITS : 0]                   mantissa;
@@ -58,8 +57,9 @@ module expu_correction #(
     //Q<0.MANTISSA_BITS + NOT_SURPLUS_BITS>
     logic [MANTISSA_BITS + NOT_SURPLUS_BITS - 1 : 0]                                       res_pre_inversion;
 
-    assign sign     =   op_i   [MANTISSA_BITS + EXPONENT_BITS];
-    assign exponent =   op_i   [MANTISSA_BITS + EXPONENT_BITS - 1 : MANTISSA_BITS];
+    logic [MANTISSA_BITS - 1 : 0]   corrected_mantissa;
+
+    assign exponent =   op_i   [WIDTH - 2 -: EXPONENT_BITS];
     assign mantissa =   {1'b1, op_i [MANTISSA_BITS - 1 : 0]};
 
     assign mant_mul_1           = mantissa [MANTISSA_BITS - 1] == 1'b0 ? {mantissa [MANTISSA_BITS - 2 : 0], {MUL_SURPLUS_BITS{1'b0}}} : ~{mantissa [MANTISSA_BITS - 1 : 0], {MUL_SURPLUS_BITS{1'b0}}};
