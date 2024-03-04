@@ -3,6 +3,20 @@ timeprecision 1ps;
 
 import expu_pkg::*;
 
+class rng;
+    int unsigned seed;
+
+    function new(int unsigned seed);
+        this.seed = seed;
+    endfunction
+
+    function int unsigned next;
+        this.seed = $urandom(this.seed);
+
+        return this.seed;
+    endfunction
+endclass
+
 module expu_top_tb;
     localparam TCp  = 1.0ns;
     localparam TA   = 0.2ns;
@@ -21,12 +35,16 @@ module expu_top_tb;
     localparam int unsigned                     N_MANT  = 2 ** MANTISSA_BITS;
     localparam logic [EXPONENT_BITS - 1 : 0]    MIN_EXP = 127;
 
+    localparam real P_STALL_GEN = 0.10;
+    localparam real P_STALL_RCV = 0.10;
+
+    localparam int unsigned SEED = 42;
+
     event   start_input_generation;
     event   start_recording;
 
-    int unsigned    results;
-
-    int unsigned    n_gen;
+    logic   gen_stall,
+            rcv_stall;
 
     logic   clk,
             rst_n,
@@ -37,6 +55,7 @@ module expu_top_tb;
 
     logic   valid_o,
             ready_o;
+            
     logic [N_ROWS - 1 : 0] strb_o;
 
     logic [N_ROWS - 1 : 0] strb;
@@ -78,6 +97,22 @@ module expu_top_tb;
         .strb_o     (   strb_o  )
     );
 
+
+    property ready_i_check;
+        @(posedge clk) (valid_o && ~ready) |=> ($stable(res_o) && $stable(strb_o))
+    endproperty
+
+    property strb_o_check(strb, res);
+            @(posedge clk) disable iff (~rst_n) (strb == 0) |-> (res == $past(res))
+    endproperty
+
+    assert property (ready_i_check);
+
+    for (genvar i = 0; i < N_ROWS; i++) begin
+        assert property (strb_o_check(strb_o [i], res_o [i]));
+    end
+    
+
     task clk_cycle;
         clk <= #(TCp / 2) 0;
         clk <= #TCp 1; 
@@ -85,28 +120,6 @@ module expu_top_tb;
         #TCp;
     endtask
 
-
-    task gen_vars;
-        ->start_recording;
-
-        exp <= #TA 127;
-
-        repeat(N_EXP) begin
-            mant <= #TA'b0;
-
-            repeat(128) begin
-                clk_cycle();
-                mant <= #TA mant + 1;
-            end
-
-            exp <= #TA exp + 1;
-        end
-
-        repeat(5)
-            clk_cycle();
-
-        enable <= #TA '0;
-    endtask
 
     initial begin
         clk     <= '0;
@@ -118,9 +131,8 @@ module expu_top_tb;
         strb    <= '0;
         op      <= '0;
 
-        exp <= MIN_EXP;
-        mant <= 0;
-        n_gen = 0;
+        exp = MIN_EXP;
+        mant = 0;
 
         clk_cycle();
 
@@ -131,42 +143,43 @@ module expu_top_tb;
 
         rst_n <= #TA 1'b1;
         enable <= #TA 1'b1;
-        ready <= #TA 1'b1;
-        strb <= #TA 'b01010101010;
 
         ->start_input_generation;
-        //->start_recording;
 
         while (1) begin
             clk_cycle();
-            strb <= #TA ~strb;
-            valid <= #TA ~valid;
-            ready <= #TA ~ready;
         end
 
     end
 
-
     initial begin : input_generation
-        @(start_input_generation.triggered)
+        rng random = new(SEED);
 
-        valid <= #TA 1;
+        @(start_input_generation.triggered)
 
         repeat(N_EXP) begin
             repeat(N_MANT) begin
-                op [n_gen] <= #TA {SIGN, exp, mant};
+                do begin
+                    gen_stall = random.next() < int'(real'(unsigned'(2 ** 32 - 1)) * P_STALL_GEN);
+                    rcv_stall = random.next() < int'(real'(unsigned'(2 ** 32 - 1)) * P_STALL_GEN);
 
-                mant <= #TA mant + 1;
+                    valid <= #TA ~gen_stall;
+                    ready <= #TA ~rcv_stall;
 
-                n_gen = n_gen + 1;
+                    if (gen_stall) begin
+                        #TCp;
+                    end
+                end while (gen_stall);
 
-                if (n_gen == N_ROWS) begin
-                    n_gen = '0;
-                    #TCp;
-                end
+                strb <= #TA random.next();
+                op <= #TA {N_ROWS{SIGN, exp, mant}};
+
+                mant = mant + 1;
+
+                #TCp;
             end
 
-            exp <= #TA exp + 1;
+            exp = exp + 1;
         end
 
         repeat(10)
@@ -174,30 +187,5 @@ module expu_top_tb;
 
         $stop;
     end
-
-
-    /*initial begin : write_results
-        @(start_recording.triggered)
-
-        results = $fopen("./res.txt", "w");
-        $fwrite(results, "[");
-
-        if (MANT_CORRECTION) begin
-            #(2 * TCp);
-        end else begin
-            #TCp;
-        end
-
-        @(res)
-
-        repeat(128 * N_EXP) begin
-            #TA;
-            $fwrite(results, "0b%b,", res);
-            #(TCp - TA);
-        end
-
-        $fwrite(results, "]");
-        $fclose(results);
-    end*/
 
 endmodule

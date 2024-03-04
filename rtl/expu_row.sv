@@ -50,10 +50,9 @@ module expu_row #(
             assign res_o        = reg_data [NUM_REGS];
             assign op_before    = op_i;
         end else if (REG_POS == expu_pkg::AROUND) begin
-            assign reg_data [0]                 = op_i;
-            assign op_before                    = reg_data [NUM_REGS / 2];
-            //assign reg_data [NUM_REGS / 2 + 1]  = result;
-            assign res_o                        = reg_data [NUM_REGS];
+            assign reg_data [0] = op_i;
+            assign op_before    = reg_data [NUM_REGS / 2];
+            assign res_o        = reg_data [NUM_REGS];
         end
     endgenerate
 
