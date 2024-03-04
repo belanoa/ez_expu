@@ -41,20 +41,29 @@ module expu_row #(
     logic [WIDTH - 1 : 0]   op_before;
 
     generate
-        if (REG_POS == fpnew_pkg::BEFORE) begin
+        if (REG_POS == expu_pkg::BEFORE) begin
             assign reg_data [0] = op_i;
             assign op_before    = reg_data [NUM_REGS];
             assign res_o        = result;
-        end else if (REG_POS == fpnew_pkg::AFTER) begin
+        end else if (REG_POS == expu_pkg::AFTER) begin
             assign reg_data [0] = result;
             assign res_o        = reg_data [NUM_REGS];
             assign op_before    = op_i;
+        end else if (REG_POS == expu_pkg::AROUND) begin
+            assign reg_data [0]                 = op_i;
+            assign op_before                    = reg_data [NUM_REGS / 2];
+            //assign reg_data [NUM_REGS / 2 + 1]  = result;
+            assign res_o                        = reg_data [NUM_REGS];
         end
     endgenerate
 
     generate
         for (genvar i = 0; i < NUM_REGS; i ++) begin : gen_regs
-            `FFLARNC(reg_data [i + 1],  reg_data [i],   enable_i [i],   clear_i,    '0, clk_i,  rst_ni)
+            if (i != NUM_REGS / 2 || REG_POS != expu_pkg::AROUND) begin
+                `FFLARNC(reg_data [i + 1],  reg_data [i],   enable_i [i],   clear_i,    '0, clk_i,  rst_ni)
+            end else begin
+                `FFLARNC(reg_data [i + 1],        result,   enable_i [i],   clear_i,    '0, clk_i,  rst_ni)
+            end
         end
     endgenerate
 
