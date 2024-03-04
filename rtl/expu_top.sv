@@ -30,12 +30,12 @@ module expu_top #(
     input   logic                                   enable_i    ,
     input   logic                                   valid_i     ,
     input   logic                                   ready_i     ,
-    input   logic [N_ROWS]                          strb_i      ,
+    input   logic [N_ROWS - 1 : 0]                  strb_i      ,
     input   logic [N_ROWS - 1 : 0] [WIDTH - 1 : 0]  op_i        ,
     output  logic [N_ROWS - 1 : 0] [WIDTH - 1 : 0]  res_o       ,
     output  logic                                   valid_o     ,
     output  logic                                   ready_o     ,
-    output  logic                                   strb_o
+    output  logic [N_ROWS - 1 : 0]                  strb_o
 );
 
     logic [NUM_REGS : 0]    valid_reg;
@@ -48,7 +48,7 @@ module expu_top #(
     always_comb begin
         for (int i = 0; i < N_ROWS; i++) begin
             for (int j = 0; j < NUM_REGS; j++) begin
-                row_enable [i][j]   = enable_i & ~reg_en_n [j] & strb_reg [j][i];
+                row_enable [i][j]   = enable_i & ~reg_en_n [j] & strb_reg [j][i] & valid_reg [j];
             end
         end
     end
@@ -84,20 +84,20 @@ module expu_top #(
     assign reg_en_n [NUM_REGS] = ~ready_i;
 
     generate
-        for (genvar i = 0; i < NUM_REGS; i++) begin : reg_enable_assignement
+        for (genvar i = 0; i < NUM_REGS; i++) begin : reg_enable_assignment
             assign reg_en_n [i] = reg_en_n [i + 1] & valid_reg [i + 1];
         end
     endgenerate
 
     generate
         for (genvar i = 0; i < NUM_REGS; i++) begin : valid_registers
-            `FFLARNC(valid_reg [i + 1], valid_reg [i],  enable_i,   clear_i,    '0, clk_i,  rst_ni)
+            `FFLARNC(valid_reg [i + 1], valid_reg [i],  enable_i & ~reg_en_n [i],   clear_i,    '0, clk_i,  rst_ni)
         end
     endgenerate
 
     generate
         for (genvar i = 0; i < NUM_REGS; i++) begin : strobe_registers
-            `FFLARNC(strb_reg [i + 1],  strb_reg [i],   enable_i,   clear_i,    '0, clk_i,  rst_ni)
+            `FFLARNC(strb_reg [i + 1],  strb_reg [i],   enable_i & ~reg_en_n [i],   clear_i,    '0, clk_i,  rst_ni)
         end
     endgenerate
 

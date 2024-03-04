@@ -9,7 +9,7 @@ module expu_top_tb;
 
     localparam fpnew_pkg::fp_format_e   FPFORMAT        = fpnew_pkg::FP16ALT;
     localparam logic                    MANT_CORRECTION = 1'b1;
-    localparam int unsigned             NUM_REGS        = 4;
+    localparam int unsigned             NUM_REGS        = 5;
     localparam int unsigned             N_ROWS          = 8;    
 
     localparam int unsigned WIDTH           = fpnew_pkg::fp_width(FPFORMAT);
@@ -132,13 +132,17 @@ module expu_top_tb;
         rst_n <= #TA 1'b1;
         enable <= #TA 1'b1;
         ready <= #TA 1'b1;
-        strb <= #TA '1;
+        strb <= #TA 'b01010101010;
 
         ->start_input_generation;
         //->start_recording;
 
-        while (1)
+        while (1) begin
             clk_cycle();
+            strb <= #TA ~strb;
+            valid <= #TA ~valid;
+            ready <= #TA ~ready;
+        end
 
     end
 
