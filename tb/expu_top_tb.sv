@@ -55,7 +55,7 @@ module expu_top_tb;
 
     logic   valid_o,
             ready_o;
-            
+
     logic [N_ROWS - 1 : 0] strb_o;
 
     logic [N_ROWS - 1 : 0] strb;
@@ -152,39 +152,79 @@ module expu_top_tb;
 
     end
 
+    rng random = new(SEED);
+
+    initial begin : ready_generation
+        while (1) begin
+            rcv_stall = random.next() < int'(real'(unsigned'(2 ** 32 - 1)) * P_STALL_RCV);
+            ready <= #TA ~rcv_stall;
+
+            #TCp;
+        end
+    end
+
     initial begin : input_generation
-        rng random = new(SEED);
+        int fd_in;
+        logic [WIDTH - 1 : 0] val;
+
+        fd_in = $fopen("golden-model/input.txt", "r");
+
+        if (fd_in == 0) begin
+            $error("Could not open \"golden-model/input.txt\"; Make sure the golden model has been generated");
+        end
 
         @(start_input_generation.triggered)
 
-        repeat(N_EXP) begin
-            repeat(N_MANT) begin
-                do begin
-                    gen_stall = random.next() < int'(real'(unsigned'(2 ** 32 - 1)) * P_STALL_GEN);
-                    rcv_stall = random.next() < int'(real'(unsigned'(2 ** 32 - 1)) * P_STALL_GEN);
+        while ($fscanf(fd_in, "%x", val) == 1) begin
 
-                    valid <= #TA ~gen_stall;
-                    ready <= #TA ~rcv_stall;
+            strb <= #TA random.next();
+            op <= #TA {N_ROWS{val}};
 
-                    if (gen_stall) begin
-                        #TCp;
-                    end
-                end while (gen_stall);
+            do begin
+                gen_stall = random.next() < int'(real'(unsigned'(2 ** 32 - 1)) * P_STALL_GEN);
+                valid <= #TA ~gen_stall;
+                
+                #TCp;
+            end while (gen_stall);
 
-                strb <= #TA random.next();
-                op <= #TA {N_ROWS{SIGN, exp, mant}};
+            while (~ready_o) begin
+                #TCp;
+            end
+        end
 
-                mant = mant + 1;
+        $fclose(fd_in);
+    end
 
+    initial begin : output_check
+        int fd_out;
+        logic [WIDTH - 1 : 0] res;
+
+        fd_out = $fopen("golden-model/result.txt", "r");
+
+        $timeformat(-9, 2, "ns");
+
+        if (fd_out == 0) begin
+            $error("Could not open \"golden-model/result.txt\"; Make sure the golden model has been generated");
+        end
+
+        @(start_input_generation.triggered)
+
+        while ($fscanf(fd_out, "%x\n", res) == 1) begin
+            #(Cp;
+            
+            while (~valid_o | ~ready) begin
                 #TCp;
             end
 
-            exp = exp + 1;
+            for (int i = 0; i < N_ROWS; i++) begin
+                if (strb_o [i] && (res != res_o [i])) begin
+                    $display("(%t) Mismatch!\tExpected %x, was %x;\tdifference:\t%x", $realtime(), res, res_o [i], res - res_o [i]);
+                    break;
+                end
+            end
         end
 
-        repeat(10)
-            #TCp;
-
+        $fclose(fd_out);
         $stop;
     end
 
