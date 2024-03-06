@@ -56,7 +56,7 @@ endif
 
 bender:
 	curl --proto '=https'  \
-	--tlsv1.2 https://pulp-platform.github.io/bender/init -sSf
+	--tlsv1.2 https://pulp-platform.github.io/bender/init -sSf | sh -s
 
 update-ips:
 	$(BENDER) update
