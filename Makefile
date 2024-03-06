@@ -3,6 +3,7 @@ BUILD_DIR  	?= $(mkfile_path)/work
 BENDER_DIR	?= .
 BENDER_NAME	?= bender
 QUESTA      ?= #questa-2020.1
+PYTHON		?= python
 
 BENDER			?= $(BENDER_DIR)/$(BENDER_NAME)
 
@@ -18,28 +19,39 @@ sim_targs += -t expu_sim
 
 INI_PATH  = $(mkfile_path)/modelsim.ini
 WORK_PATH = $(BUILD_DIR)
+WAVES	  = wave.do
 
 tb := expu_top_tb
 
 gui      ?= 0
-P_STALL  ?= 0.0
+
+P_STALL_GEN ?= 0.0
+P_STALL_RCV ?= 0.0
+
+fpformat				?= BFLOAT16
+a_fraction				?= 14
+coefficient_fraction	?= 4
+constant_fraction		?= 7
+mul_surplus_bits		?= 1
+not_surplus_bits		?= 0
+n_inputs				?= 100
+alpha					?= 0.218750000
+beta					?= 0.410156250
+gamma1					?= 2.835937500
+gamma2					?= 2.167968750
 
 # Run the simulation
-run: $(CRT)
+run:
 ifeq ($(gui), 0)
-	cd $(BUILD_DIR)/$(TEST_SRCS);          \
-	$(QUESTA) vsim -c vopt_tb -do "run -a" \
-	-gSTIM_INSTR=stim_instr.txt            \
-	-gSTIM_DATA=stim_data.txt              \
-	-gPROB_STALL=$(P_STALL)
+	$(QUESTA) vsim -c vopt_tb -do "run -a" 	\
+	-gP_STALL_GEN=$(P_STALL_GEN)			\
+	-gP_STALL_RCV=$(P_STALL_RCV)
 else
-	cd $(BUILD_DIR)/$(TEST_SRCS); \
 	$(QUESTA) vsim vopt_tb        \
 	-do "add log -r sim:/$(tb)/*" \
 	-do "source $(WAVES)"         \
-	-gSTIM_INSTR=stim_instr.txt   \
-	-gSTIM_DATA=stim_data.txt     \
-	-gPROB_STALL=$(P_STALL)
+	-gP_STALL_GEN=$(P_STALL_GEN)  \
+	-gP_STALL_RCV=$(P_STALL_RCV)
 endif
 
 bender:
@@ -72,5 +84,11 @@ hw-clean:
 	rm -rf transcript
 	rm -rf modelsim.ini
 
-
 hw-all: hw-clean hw-lib hw-compile hw-opt
+
+golden-clean:
+	rm -rf golden-model/input.txt
+	rm -rf golden-model/result.txt
+
+golden: golden-clean
+	$(PYTHON) golden-model/golden.py --fpformat $(fpformat) --a_fraction $(a_fraction) --coefficient_fraction $(coefficient_fraction) --constant_fraction $(constant_fraction) --mul_surplus_bits $(mul_surplus_bits) --not_surplus_bits $(mul_surplus_bits) --n_inputs $(n_inputs) --alpha $(alpha) --beta $(beta) --gamma1 $(gamma1) --gamma2 $(gamma2)

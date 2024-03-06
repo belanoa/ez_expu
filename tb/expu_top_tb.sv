@@ -18,6 +18,9 @@ class rng;
 endclass
 
 module expu_top_tb;
+    parameter real P_STALL_GEN = 0;
+    parameter real P_STALL_RCV = 0;
+
     localparam TCp  = 1.0ns;
     localparam TA   = 0.2ns;
 
@@ -35,10 +38,7 @@ module expu_top_tb;
     localparam int unsigned                     N_MANT  = 2 ** MANTISSA_BITS;
     localparam logic [EXPONENT_BITS - 1 : 0]    MIN_EXP = 127;
 
-    localparam real P_STALL_GEN = 0.10;
-    localparam real P_STALL_RCV = 0.10;
-
-    localparam int unsigned SEED = 42;
+    localparam int unsigned SEED = 210624;
 
     event   start_input_generation;
     event   start_recording;
@@ -210,7 +210,7 @@ module expu_top_tb;
         @(start_input_generation.triggered)
 
         while ($fscanf(fd_out, "%x\n", res) == 1) begin
-            #(Cp;
+            #TCp;
             
             while (~valid_o | ~ready) begin
                 #TCp;
@@ -225,7 +225,7 @@ module expu_top_tb;
         end
 
         $fclose(fd_out);
-        $stop;
+        $finish;
     end
 
 endmodule

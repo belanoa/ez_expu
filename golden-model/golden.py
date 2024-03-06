@@ -10,7 +10,7 @@ parser.add_argument("--coefficient_fraction",   type = int,     default = 4     
 parser.add_argument("--constant_fraction"   ,   type = int,     default = 7             )
 parser.add_argument("--mul_surplus_bits"    ,   type = int,     default = 1             )
 parser.add_argument("--not_surplus_bits"    ,   type = int,     default = 0             )
-parser.add_argument("--n_inputs"            ,   type = int,     default = 100          )
+parser.add_argument("--n_inputs"            ,   type = int,     default = 100           )
 parser.add_argument("--alpha"               ,   type = float,   default = 0.218750000   )
 parser.add_argument("--beta"                ,   type = float,   default = 0.410156250   )
 parser.add_argument("--gamma1"              ,   type = float,   default = 2.835937500   )
@@ -112,9 +112,9 @@ else:
     res = np.frombuffer((np.bitwise_and(np.frombuffer(exp_sch, dtype = inttype), np.bitwise_and(2 ** (mantissa_bits + exponent_bits + 1) - 1, 2 ** mantissa_bits - 1)) + res_int).astype(inttype), dtype = flttype)
     res = np.where(ne.astype(np.uint32) >= (2 ** exponent_bits - 1), np.where(sign == 0, float("inf"), 0), res).astype(flttype)
 
-np.savetxt("input.txt", intvect, fmt = f"0x%0{(mantissa_bits + exponent_bits + 1) / 4}X")
+np.savetxt("golden-model/input.txt", intvect, fmt = f"0x%0{(mantissa_bits + exponent_bits + 1) / 4}X")
 
 if (dtype == torch.bfloat16):
-    np.savetxt("result.txt", np.frombuffer(res, dtype = inttype) >> 16, fmt = f"0x%0{(mantissa_bits + exponent_bits + 1) / 4}X")
+    np.savetxt("golden-model/result.txt", np.frombuffer(res, dtype = inttype) >> 16, fmt = f"0x%0{(mantissa_bits + exponent_bits + 1) / 4}X")
 else:
-    np.savetxt("result.txt", np.frombuffer(res, dtype = inttype), fmt = f"0x%0{(mantissa_bits + exponent_bits + 1) / 4}X")
+    np.savetxt("golden-model/result.txt", np.frombuffer(res, dtype = inttype), fmt = f"0x%0{(mantissa_bits + exponent_bits + 1) / 4}X")
