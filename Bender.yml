@@ -2,7 +2,7 @@ package:
   name: ez_expu   #Provisional name
 
 dependencies:
-  fpnew         : { git: "https://github.com/pulp-platform/cvfpu.git"       , rev: "pulp-v0.1.3"  }
+  fpnew         : { git: "https://github.com/pulp-platform/fpnew.git"       , rev: "v0.8.1"  }
   common_cells  : { git: "git@github.com:pulp-platform/common_cells.git"    , rev: "v1.32.0"      } 
 
 sources:
